@@ -34,7 +34,7 @@ def choose_action(net, state):
     return action
 
 def train(batch_size, memory, target_network, main_network):
-    optimizer = torch.optim.Adam(main_network.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(main_network.parameters(), lr=0.003)
     optimizer.zero_grad()
 
     minibatch = random.sample(memory, batch_size)
