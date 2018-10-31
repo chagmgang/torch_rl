@@ -70,16 +70,22 @@ assign_parameter(target_network, main_network)
 memory_size = 10000
 memory = deque(maxlen=memory_size)
 
+e = 0
 env = gym.make('CartPole-v0')
 for episode in range(10000):
     state = env.reset()
+    e = 1. / ((episode / 10) + 1)
     done = False
     global_step = 0
     state_list, action_list, next_state_list, reward_list, done_list = [], [], [], [], []
 
     while not done:
         global_step += 1
-        action = choose_action(main_network, state)
+        if np.random.rand() < e:
+            action = np.eye(2)[env.action_space.sample()]
+        else:
+            action = choose_action(main_network, state)
+            
         next_state, reward, done, _ = env.step(np.argmax(action))
 
         if done: reward = -1
