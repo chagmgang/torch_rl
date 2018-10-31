@@ -7,7 +7,6 @@ import torch.optim as optim
 import torch.nn.init as init
 import torchvision.transforms as transforms
 from torch.autograd import Variable
-import tensorflow as tf
 
 class Model(nn.Module):
     def __init__(self):
@@ -50,12 +49,6 @@ def discount_rewards(r):
     discounted_r = (discounted_r - discounted_r.mean())/(discounted_r.std() + 1e-7)
     return discounted_r
 
-sess = tf.Session()
-r = tf.placeholder(tf.float32)
-rr = tf.summary.scalar('reward', r)
-merged = tf.summary.merge_all()
-writer = tf.summary.FileWriter('./board', sess.graph)
-
 net = Model()
 optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
 
@@ -84,7 +77,5 @@ for episode in range(400):
     
     discounted_rewards = discount_rewards(reward_list)
 
-    train(optimizer=optimizer, net=net, state=state_list, reward=discounted_rewards, action=action_list)
-    summary = sess.run(merged, feed_dict={r: global_step})
-    writer.add_summary(summary, episode)
+    train(optimizer=optimizer, net=net, state=state_list, reward=discounted_rewards, action=action_list)\
     print(episode, global_step)
