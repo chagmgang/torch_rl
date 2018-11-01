@@ -79,3 +79,4 @@ for episode in range(400):
 
     train(optimizer=optimizer, net=net, state=state_list, reward=discounted_rewards, action=action_list)\
     print(episode, global_step)
+    
