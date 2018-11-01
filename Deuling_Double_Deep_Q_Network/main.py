@@ -16,12 +16,15 @@ class Model(nn.Module):
         self.layer_1 = nn.Linear(4, 60)
         self.layer_2 = nn.Linear(60, 60)
         self.layer_3 = nn.Linear(60, 2)
+        self.layer_4 = nn.Linear(60, 1)
 
     def forward(self, x):
         x = F.selu(self.layer_1(x))
         x = F.selu(self.layer_2(x))
-        x = self.layer_3(x)
-        return x
+        adv = self.layer_3(x)
+        val = self.layer_4(x)
+        Q_pred = adv + val
+        return Q_pred
 
 def assign_parameter(target_network, main_network):
     target_network.load_state_dict(main_network.state_dict())
