@@ -29,7 +29,7 @@ def predict_intrincit_reward(target, main, state):
     error = main_embed - target_embed
     reward = error.pow(2)
     reward = torch.sum(reward).data.numpy()
-    return error
+    return reward
 
 def rnd_train(target, main, state):
     optimizer = torch.optim.Adam(main.parameters(), lr=0.003)
