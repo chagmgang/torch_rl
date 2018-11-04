@@ -120,8 +120,7 @@ for episodes in range(100):
     v_preds_next = np.array(v_preds_next).astype(dtype=np.float32)
     gaes = np.array(gaes).astype(dtype=np.float32)
 
-    assign_parameter(Old_Policy, Policy)
     train(batch_size, train_epoch, optimizer, Old_Policy, Policy,
           observations, actions, rewards, v_preds_next, gaes)
-
+    assign_parameter(Old_Policy, Policy)
     print(episodes, global_step)
