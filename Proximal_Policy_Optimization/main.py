@@ -86,41 +86,54 @@ def train(batch_size, train_epoch, optimizer, Old_Policy, Policy, observations, 
         loss.backward()
         optimizer.step()
 
+writer = SummaryWriter()
 Policy = Model()
 Old_Policy = Model()
 assign_parameter(Old_Policy, Policy)
-optimizer = torch.optim.Adam(Policy.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(Policy.parameters(), lr=0.005)
 env = gym.make('CartPole-v1')
-batch_size = 32
-train_epoch = 5
+batch_size = 64
+train_epoch = 1
 
 for episodes in range(1000):
     done = False
     state = env.reset()
-    observations, actions, v_preds, rewards = [], [], [], []
+    observations, actions, v_preds, rewards, dones = [], [], [], [], []
     global_step = 0
     while not done:
+        if episodes % 20 == 0:
+            env.render()
         global_step += 1
         action, value = choose_action(Policy, state)
         next_state, reward, done, _ = env.step(np.argmax(action))
 
-        if done: reward = -1
+        if done:
+            if global_step == 500:
+                reward = 1
+            else:
+                reward = -1
+        else: reward = 0
 
         observations.append(state)
         actions.append(action)
         v_preds.append(value)
         rewards.append(reward)
+        dones.append(done)
+
         state = next_state
     
     v_preds_next = v_preds[1:] + [0]
     gaes = get_gaes(rewards, v_preds, v_preds_next)
-    observations = np.array(observations)
-    actions = np.array(actions).astype(dtype=np.int32)
-    rewards = np.array(rewards).astype(dtype=np.float32)
-    v_preds_next = np.array(v_preds_next).astype(dtype=np.float32)
+    observations_array = np.array(observations)
+    actions_array = np.array(actions).astype(dtype=np.int32)
+    rewards_array = np.array(rewards).astype(dtype=np.float32)
+    v_preds_next_array = np.array(v_preds_next).astype(dtype=np.float32)
     gaes = np.array(gaes).astype(dtype=np.float32)
+    adv = (gaes - gaes.mean()) / (gaes.std() + 1e-7)
+
 
     train(batch_size, train_epoch, optimizer, Old_Policy, Policy,
-        observations, actions, rewards, v_preds_next, gaes)
+        observations_array, actions_array, rewards_array, v_preds_next_array, gaes)
     assign_parameter(Old_Policy, Policy)
+    writer.add_scalar('data/reward', global_step, episodes)
     print(episodes, global_step)
