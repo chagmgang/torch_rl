@@ -8,6 +8,7 @@ import torch.nn.init as init
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 import copy
+from tensorboardX import SummaryWriter
 
 class Model(nn.Module):
     def __init__(self):
@@ -70,9 +71,10 @@ def train(batch_size, train_epoch, optimizer, Old_Policy, Policy, observations, 
         tensor_prev_action_probs = torch.log(torch.sum(torch.mul(tensor_prev_action_probs, tensor_actions), dim=1))
 
         action_prob_ratio = torch.exp(torch.sub(tensor_action_probs, tensor_prev_action_probs))
-        clipped = torch.clamp(action_prob_ratio, min=1-0.2, max=1+0.2)
+        action_prob_ratio_adv = torch.mul(tensor_gaes, action_prob_ratio)
+        clipped = torch.clamp(action_prob_ratio_adv, min=1-0.2, max=1+0.2)
 
-        loss_action = torch.min(torch.mul(tensor_gaes, action_prob_ratio), torch.mul(tensor_gaes, clipped))
+        loss_action = torch.min(action_prob_ratio_adv, clipped)
         loss_action = torch.sum(loss_action)
 
         loss_value = tensor_rewards + 0.99 * tensor_v_preds_next - tensor_value.view(-1)
@@ -84,16 +86,15 @@ def train(batch_size, train_epoch, optimizer, Old_Policy, Policy, observations, 
         loss.backward()
         optimizer.step()
 
-
 Policy = Model()
 Old_Policy = Model()
 assign_parameter(Old_Policy, Policy)
 optimizer = torch.optim.Adam(Policy.parameters(), lr=0.001)
-env = gym.make('CartPole-v0')
+env = gym.make('CartPole-v1')
 batch_size = 32
-train_epoch = 4
+train_epoch = 5
 
-for episodes in range(100):
+for episodes in range(1000):
     done = False
     state = env.reset()
     observations, actions, v_preds, rewards = [], [], [], []
@@ -109,9 +110,8 @@ for episodes in range(100):
         actions.append(action)
         v_preds.append(value)
         rewards.append(reward)
-
         state = next_state
-
+    
     v_preds_next = v_preds[1:] + [0]
     gaes = get_gaes(rewards, v_preds, v_preds_next)
     observations = np.array(observations)
@@ -121,6 +121,6 @@ for episodes in range(100):
     gaes = np.array(gaes).astype(dtype=np.float32)
 
     train(batch_size, train_epoch, optimizer, Old_Policy, Policy,
-          observations, actions, rewards, v_preds_next, gaes)
+        observations, actions, rewards, v_preds_next, gaes)
     assign_parameter(Old_Policy, Policy)
     print(episodes, global_step)
