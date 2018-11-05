@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 import gym, copy
+from tensorboardX import SummaryWriter
 
 def ortho_weights(shape, scale=1.0):
     shape = tuple(shape)
@@ -20,10 +21,10 @@ def ortho_weights(shape, scale=1.0):
     q = u if u.shape == flat_shape else v
     q = q.transpose().copy().reshape(shape)
 
-if len(shape) == 2:
-    return torch.from_numpy((scale * q).astype(np.float32))
-    if len(shape) == 4:
-        return torch.from_numpy((scale * q[:, :shape[1], :shape[2]]).astype(np.float32))
+    if len(shape) == 2:
+        return torch.from_numpy((scale * q).astype(np.float32))
+        if len(shape) == 4:
+            return torch.from_numpy((scale * q[:, :shape[1], :shape[2]]).astype(np.float32))
 
 class Model(nn.Module):
     def __init__(self):
@@ -53,8 +54,10 @@ class Model(nn.Module):
 def choose_action(net, state):
     tensor_state = Variable(torch.from_numpy(state).float())
     action, value = net(tensor_state)
+    before = action
     action = F.softmax(action)
     action = action.data.numpy()
+    #print(before, action)
     prob = np.clip(action, 1e-10, 1.0)
     length_action = len(action)
     value = value.data.numpy()[0]
@@ -115,7 +118,7 @@ def train(Old_Policy, Policy, observations, actions, rewards, v_preds_next, gaes
     optimizer.step()
 
 
-
+writer = SummaryWriter()
 Policy = Model()
 Old_Policy = Model()
 env = gym.make('CartPole-v1')
@@ -127,9 +130,11 @@ for episodes in range(10000):
     state = env.reset()
     observations, actions, rewards, v_preds = [], [], [], []
     global_step = 0
+    sum_entropy = 0
     while not done:
         global_step += 1
         action, value, entropy = choose_action(Policy, state)
+        sum_entropy += entropy
         next_state, reward, done, _ = env.step(np.argmax(action))
         if done:
             if global_step == 500:
@@ -153,13 +158,15 @@ for episodes in range(10000):
     v_preds_next = np.array(v_preds_next)
     gaes = np.array(gaes)
 
-inp = [observations, actions, rewards, v_preds_next, gaes]
-train(observations=observations,
-      actions=actions,
-      rewards=rewards,
-      v_preds_next=v_preds_next,
-      gaes=gaes,
-      Old_Policy=Old_Policy,
-      Policy=Policy)
-assign_parameter(Old_Policy, Policy)
-print(episodes, global_step)
+    inp = [observations, actions, rewards, v_preds_next, gaes]
+    train(observations=observations,
+        actions=actions,
+        rewards=rewards,
+        v_preds_next=v_preds_next,
+        gaes=gaes,
+        Old_Policy=Old_Policy,
+        Policy=Policy)
+    assign_parameter(Old_Policy, Policy)
+    writer.add_scalar('data/reward', global_step, episodes)
+    writer.add_scalar('data/entropy', sum_entropy, episodes)
+    print(episodes, global_step)
